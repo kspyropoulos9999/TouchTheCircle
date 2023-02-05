@@ -1,0 +1,211 @@
+from random import random, randint
+from kivy.app import App
+from kivy.properties import ObjectProperty, NumericProperty, ListProperty, ReferenceListProperty, Clock, StringProperty
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.widget import Widget
+from kivy.vector import Vector
+from kivy.core.window import Window
+
+
+# reset/pause  game button
+class ResetterLabel(ButtonBehavior, Widget):
+    counter = 0
+
+    def resetShapeGeneration(self):
+        self.counter += 1
+        if self.counter % 2 != 0:
+            myApp.secondPage.deleteShapes()
+            del myApp.secondPage.shapesList[:]
+            self.score = 0
+            Clock.unschedule(myApp.secondPage.addShape)
+            myApp.secondPage.scoreUpdater()
+
+        if self.counter % 2 == 0:
+            Clock.schedule_interval(myApp.secondPage.addShape, 0.35)
+
+# shape class
+class Shape(ButtonBehavior, Widget):
+    velocityX = NumericProperty(0)
+    velocityY = NumericProperty(0)
+    velocity = ReferenceListProperty(velocityX, velocityY)
+    r = NumericProperty(1)
+    g = NumericProperty(1)
+    b = NumericProperty(1)
+    a = NumericProperty(1)
+
+    # shape movement
+    def move(self):
+        self.pos = Vector(*self.velocity) + self.pos
+
+    # remove shape
+    def remover(self):
+        self.parent.remove_widget(self)
+        SecondPage.colorOne = random()
+        SecondPage.colorTwo = random()
+        SecondPage.colorThree = random()
+        SecondPage.colorFour = random()
+
+# first page/screen
+class FirstPage(Button):
+    number = NumericProperty()
+
+    def __init__(self, **kwargs):
+        super(Button, self).__init__(**kwargs)
+        # Create the clock and increment the time by .35 seconds.
+        Clock.schedule_interval(self.increment_time, .35)
+        self.increment_time(0)
+
+    # To increase the time / count
+    def increment_time(self, interval):
+        self.number += .1
+
+    # To start the count
+    def start(self):
+        Clock.unschedule(self.increment_time)
+        Clock.schedule_interval(self.increment_time, .1)
+
+    # To stop the count / time
+    def stop(self):
+        Clock.unschedule(self.increment_time)
+
+    def __init__(self):
+        super().__init__()
+        self.text = 'Press anywhere to start'
+
+   # start game when first page is pressed
+    def starter(self):
+        Clock.unschedule(self.increment_time)
+        Clock.schedule_interval(self.increment_time, .01)
+        self.parent.remove_widget(self)
+        Clock.schedule_interval(myApp.secondPage.addShape, 0.35)
+        Clock.schedule_interval(myApp.secondPage.updateScreen, 1.0 / 60.0)
+        return True
+
+# second page/screen
+class SecondPage(Widget):
+    player1 = NumericProperty(0)
+    player2 = ObjectProperty(None)
+    colorOne = NumericProperty(0)
+    colorTwo = NumericProperty(0)
+    colorThree = NumericProperty(0)
+    colorFour = NumericProperty(0)
+    labelText = StringProperty()
+    shapeRemoveList = []
+    array = []
+
+    def __init__(self, **kwargs):
+        super(SecondPage, self).__init__(**kwargs)
+        self.timeCounter = 0
+        self.count = 0
+        self.labelText = str(self.count)
+        self.label = Label()
+
+        self.add_widget(self.label)
+
+    def timeElapse(self):
+        self.timeCounter += 1
+
+    shapesList = ListProperty([])
+    
+    # place shapes onto screen
+    def addShape(self, *args):
+        shape = Shape()
+        scoreKeeper = ResetterLabel()
+        shape.pos = (randint(0, self.width - 64), randint(0, self.height - 64))
+        shape.velocity = Vector(13, 0).rotate(randint(0, 360))
+        self.add_widget(shape)
+        self.add_widget(scoreKeeper)
+        self.shapesList.append(shape)
+
+    # maintain shapes and score updates
+    def updateScreen(self, dt):
+        self.count = 0
+        self.highScore = 0
+        self.labelText = str(self.count)
+
+        # is shapesList is not present, score is 0
+        if not self.shapesList:
+            self.count = 0
+            self.labelText = str(self.count)
+            self.label.text = self.labelText
+
+        # iterate through current shapes
+        for shape in self.shapesList:
+            shape.move()
+
+            # remove shape if touched/deleted
+            if shape.children is None:
+                self.remove_widget(shape)
+
+            # when shape is touched/deleted change screen color and add one to score
+            if shape.parent is None:
+                Window.clearcolor = (self.colorOne, self.colorTwo, self.colorThree, 1)
+                self.count += 1
+                self.highScore += 1
+                self.labelText = str(self.count)
+                self.label.text = self.labelText
+                self.label.color = self.colorOne * 2, self.colorTwo * 2, self.colorThree, 1
+                self.label.font_size = 75
+                self.label.pos = self.center_x-50, self.center_y
+                # change color of all shapes when shape is touched
+                for child in self.shapesList:
+                    child.r = self.colorOne * 3
+                    child.g = self.colorTwo * 3
+                    child.b = self.colorThree * 3
+
+            # bounce off top and bottom
+            if (shape.y < 0) or (shape.y > self.height - 50):
+                shape.velocityY *= -1
+
+            # bounce off left and increase the score
+            if shape.x < 0:
+                shape.velocityX *= -1
+
+            # bounce off right
+            if shape.x > self.width - 50:
+                shape.velocityX *= -1
+
+    # score is zero if no shapes are present
+    def scoreUpdater(self, *args):
+        if not self.shapesList:
+            self.count = 0
+            self.labelText = str(self.count)
+            self.label.text = self.labelText
+    # remove shapes from array
+    def deleteShapes(self):
+        for shape in self.shapesList:
+            self.remove_widget(shape)
+
+
+# add instructional label class
+class InstructionLabel(Widget):
+    pass
+
+# build app 
+class myApp(App):
+    secondPage = SecondPage()
+    firstPage = FirstPage()
+
+    def build(self):
+        self.icon = "AppIcon3.png"
+        self.title ='ShapeSquash'
+        self.screen_manager = ScreenManager()
+
+        firstPage = FirstPage()
+        instruction = InstructionLabel()
+        screen = Screen()
+
+        screen.add_widget(self.secondPage)
+        screen.add_widget(instruction)
+
+        screen.add_widget(firstPage)
+
+        self.screen_manager.add_widget(screen)
+        return self.screen_manager
+
+
+my = myApp()
+my.run()
