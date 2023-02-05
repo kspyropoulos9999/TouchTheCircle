@@ -1,0 +1,61 @@
+
+<Shape>:
+    size: 128,128
+    id: layouter
+
+    canvas:
+        Color:
+            rgba: self.r, self.g, self.b, self.a
+
+        Ellipse:
+            id: test
+            pos:self.pos
+            size: self.size
+    on_press:
+        self.remover()
+
+
+
+
+<InstructionLabel>:
+
+    Label:
+        font_size: dp(11)
+        text: "Press button to reset & pause.\nPress again to restart."
+        pos: 175, 100
+
+
+
+
+<ResetterLabel>:
+    canvas:
+
+        Rectangle:
+            pos: 0, 0
+            size: 112, 100
+    on_press:
+        self.resetShapeGeneration()
+
+
+<FirstPage>:
+    size: 800,600
+    on_press:
+        self.blob()
+    canvas:
+        Color:
+            rgba: 0, 0, 0, 0
+        Rectangle:
+            id: test1
+            pos:self.pos
+            size: self.size
+        Rectangle:
+            id: test2
+            pos:self.pos
+            size: self.size
+
+
+
+
+
+
+
